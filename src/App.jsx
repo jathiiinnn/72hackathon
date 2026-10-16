@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, CalendarDays, ChevronDown, Clock3, MapPin, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronRight, Copy, Menu as MenuIcon, Pause, Play, X } from "lucide-react";
 import { getEvents } from "./api/events";
 
 const fallbackEvents = [
@@ -25,69 +25,113 @@ const fallbackEvents = [
 
 function formatDate(value) {
   if (!value) return "Date to be announced";
-  return new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function formatTime(value) {
   if (!value) return "Time to be announced";
-  return new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
 }
 
-function EventCard({ event, featured = false }) {
-  return (
-    <article className={`event-card ${featured ? "event-card--featured" : ""}`}>
-      <div className="event-card__image" style={event.image ? { backgroundImage: `url(${event.image})` } : undefined}>
-        {!event.image && <span>{event.category?.slice(0, 1)}</span>}
-        <span className="event-card__badge">{event.category}</span>
-      </div>
-      <div className="event-card__body">
-        <div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div>
-        <h3>{event.title}</h3>
-        <p>{event.description}</p>
-        <div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><button aria-label={`View ${event.title}`}><ArrowUpRight size={19} /></button></div>
-      </div>
-    </article>
-  );
+function EventImage({ event, large = false }) {
+  return <div className={`event-image ${large ? "event-image--large" : ""}`} style={event.image ? { backgroundImage: `url(${event.image})` } : undefined}>
+    <span>{event.category.slice(0, 1)}</span>
+    <i />
+  </div>;
 }
 
 function App() {
   const [events, setEvents] = useState([]);
   const [status, setStatus] = useState("loading");
-  const [query, setQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All events");
+  const [activeEvent, setActiveEvent] = useState(0);
+  const [panel, setPanel] = useState(null);
+  const [audioOn, setAudioOn] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [time, setTime] = useState("");
 
-  const loadEvents = () => {
+  useEffect(() => {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 8000);
-    setStatus("loading");
-    getEvents(controller.signal).then((items) => { setEvents(items); setStatus(items.length ? "ready" : "empty"); }).catch(() => setStatus("error")).finally(() => window.clearTimeout(timer));
-    return () => { controller.abort(); window.clearTimeout(timer); };
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    getEvents(controller.signal).then((items) => { setEvents(items); setStatus(items.length ? "ready" : "empty"); }).catch(() => setStatus("error")).finally(() => window.clearTimeout(timeout));
+    return () => { controller.abort(); window.clearTimeout(timeout); };
+  }, []);
+
+  useEffect(() => {
+    const updateTime = () => setTime(new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()));
+    updateTime();
+    const interval = window.setInterval(updateTime, 30000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = panel ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [panel]);
+
+  useEffect(() => {
+    if (!panel) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setPanel(null);
+      if (event.key !== "Tab") return;
+      const focusable = [...document.querySelectorAll(".overlay-panel a, .overlay-panel button")];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [panel]);
+
+  const displayedEvents = useMemo(() => status === "error" || status === "empty" ? fallbackEvents : events, [events, status]);
+  const selectedEvent = displayedEvents[activeEvent % Math.max(displayedEvents.length, 1)] || fallbackEvents[0];
+
+  const copyEmail = async () => {
+    await navigator.clipboard?.writeText("hello@gather.events");
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   };
 
-  useEffect(() => loadEvents(), []);
+  const closePanel = () => setPanel(null);
 
-  const visibleEvents = useMemo(() => {
-    const source = status === "error" ? fallbackEvents : events;
-    return source.filter((event) => `${event.title} ${event.description} ${event.location} ${event.category}`.toLowerCase().includes(query.toLowerCase())).filter((event) => activeFilter === "All events" || event.category === activeFilter);
-  }, [events, status, query, activeFilter]);
+  return <div className="portfolio-shell">
+    <header className="utility-nav">
+      <a href="#top" className="brand-lockup" aria-label="Gather home"><strong>GATHER</strong><span>EVENTS<br />2026</span></a>
+      <button className="menu-trigger" onClick={() => setPanel("menu")} aria-label="Open menu"><MenuIcon size={14} /> Menu</button>
+      <button className="showreel" onClick={() => setPanel("credits")}>’25 showreel <Play size={11} /></button>
+      <div className="utility-controls"><button onClick={() => setAudioOn(!audioOn)} className="utility-button" aria-pressed={audioOn}>{audioOn ? <Pause size={12} /> : <Play size={12} />} Audio {audioOn ? "On" : "Off"}</button><span className="utility-location">Working globally<br /><b>HCMC, {time || "--:--"}</b></span></div>
+      <button className="inquiry" onClick={copyEmail}><span>For inquiries</span><b>{copied ? "Copied" : "hello@gather.events"}</b><Copy size={12} /></button>
+    </header>
 
-  const filters = ["All events", ...new Set(events.map((event) => event.category))];
-
-  return <div className="app-shell">
-    <header className="site-header"><a className="logo" href="#top"><span>g</span>ather<span className="logo-dot">.</span></a><nav><a href="#events">Explore</a><a href="#about">Our point of view</a></nav><a className="header-link" href="#events">Find an event <ArrowUpRight size={16} /></a></header>
     <main id="top">
-      <section className="hero"><div className="hero__eyebrow"><Sparkles size={16} /> Curious by default</div><h1>Make room for<br /><em>something new.</em></h1><p>Gather is a calmer way to find events, ideas, and people worth making time for.</p><a className="button button--dark" href="#events">Explore events <ArrowUpRight size={17} /></a><div className="hero__scribble">scroll to wander ↓</div></section>
-      <section className="intro" id="about"><div className="section-label">01 / Why gather</div><div><h2>The best plans start with<br /><em>“what if I went?”</em></h2><p>From small workshops to big conversations, discover what is happening around you without the noise. A little inspiration, neatly arranged.</p></div></section>
-      <section className="events-section" id="events"><div className="section-heading"><div><div className="section-label">02 / Coming up</div><h2>Go on,<br /><em>pick one.</em></h2></div><div className="events-controls"><label className="search-box"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" aria-label="Search events" /></label><div className="filter-row">{filters.map((filter) => <button className={activeFilter === filter ? "active" : ""} key={filter} onClick={() => setActiveFilter(filter)}>{filter}<ChevronDown size={14} /></button>)}</div></div></div>
-        {status === "loading" && <div className="state-card"><div className="loader" /><p>Looking around for good things…</p></div>}
-        {status === "empty" && <div className="state-card"><h3>Nothing on the calendar yet.</h3><p>Try checking back soon, or broaden your search.</p><button className="text-button" onClick={loadEvents}>Refresh events <RefreshCw size={15} /></button></div>}
-        {visibleEvents.length > 0 && <div className="event-grid">{visibleEvents.map((event, index) => <EventCard event={event} featured={index === 0} key={event.id} />)}</div>}
-        {status === "error" && <div className="notice"><strong>We hit a small snag.</strong> Showing a few sample events while the events service wakes up. <button onClick={loadEvents}>Try again</button></div>}
-        {status === "ready" && visibleEvents.length === 0 && <div className="state-card"><h3>No matches found.</h3><p>Try a different search or category.</p></div>}
+      <section className="hero-section" aria-labelledby="hero-title">
+        <div className="hero-name" id="hero-title"><span>Gather</span><span>Events</span></div>
+        <div className="hero-meta"><div><span>Launch</span><strong>2026</strong></div><div><span>Recognition</span><strong>Campus events<br />Creative community<br />Open to everyone</strong></div></div>
+        <div className="hero-feature"><EventImage event={selectedEvent} large /><div className="hero-feature__caption"><span>{selectedEvent.category}</span><strong>{selectedEvent.title}</strong><p>{selectedEvent.description}</p></div></div>
+        <div className="hero-scroll">Scroll <ChevronRight size={12} /></div>
+        <div className="hero-index"><span>01</span><b>/{String(Math.max(displayedEvents.length, 1)).padStart(2, "0")}</b></div>
+        <div className="hero-side-list" aria-hidden="true">{displayedEvents.slice(1, 5).map((event) => <div key={event.id}><small>{event.category}</small><strong>{event.title}</strong><p>{event.description}</p></div>)}</div>
       </section>
-      <section className="closing"><div className="section-label">03 / Keep in touch</div><h2>Leave a little space<br />for <em>serendipity.</em></h2><p>Good things happen when you look up from the usual.</p><a className="button button--light" href="#events">Browse the calendar <ArrowUpRight size={17} /></a></section>
+
+      <section className="selected-work" id="work" aria-labelledby="selected-title">
+        <div className="section-marker"><span id="selected-title">Selected work</span><strong>01</strong><b>/{String(Math.max(displayedEvents.length, 1)).padStart(2, "0")}</b></div>
+        <div className="marquee-viewport"><div className="marquee-track">{[...displayedEvents, ...displayedEvents].map((event, index) => <button className="marquee-card" key={`${event.id}-${index}`} onClick={() => { setActiveEvent(index % displayedEvents.length); window.scrollTo({ top: 0, behavior: "smooth" }); }}><EventImage event={event} /><span>{event.category}</span><strong>{event.title}</strong><p>{event.description}</p></button>)}</div></div>
+      </section>
+
+      <section className="project-section" aria-labelledby="project-list-title">
+        <div className="section-marker"><span id="project-list-title">All events</span><strong>{String(displayedEvents.length).padStart(2, "0")}</strong></div>
+        <div className="project-list">{displayedEvents.map((event, index) => <a className="project-row" href={`#event-${event.id}`} key={event.id} onMouseEnter={() => setActiveEvent(index)}>
+          <div className="project-row__title"><span>{event.category}</span><h2>{event.title}</h2><p>{event.description}</p></div><div className="project-row__meta"><span>{formatDate(event.date)}</span><span>{formatTime(event.date)}</span><span>{event.location}</span></div><div className="project-row__arrow"><ArrowUpRight size={17} /></div>
+        </a>)}</div>
+      </section>
+
+      <section className="footer-cta" id="contact"><div className="section-marker"><span>Keep in touch</span></div><h2>Leave room for<br /><em>something new.</em></h2><p>{selectedEvent.description}</p><button onClick={copyEmail} className="outline-link">{copied ? "Copied" : "Say hello"} <ArrowUpRight size={15} /></button></section>
     </main>
-    <footer><a className="logo" href="#top"><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer>
+
+    <footer className="site-footer"><div><strong>Independent event platform</strong><span>Working globally</span></div><div className="footer-marquee" aria-hidden="true">✳︎ &nbsp; GATHER &nbsp; ✳︎ &nbsp; GATHER &nbsp; ✳︎ &nbsp; GATHER &nbsp;</div><button className="credits-trigger" onClick={() => setPanel("credits")}>Credits · 2026</button></footer>
+
+    {panel && <div className="panel-backdrop" role="presentation" onClick={closePanel}><section className="overlay-panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" onClick={(event) => event.stopPropagation()}><button className="panel-close" autoFocus onClick={closePanel}><X size={16} /> Close</button>{panel === "menu" ? <><h2 id="panel-title">Navigate</h2><nav className="overlay-links"><a href="#work" onClick={closePanel}>WORK</a><a href="#top" onClick={closePanel}>ABOUT</a><a href="#work" onClick={closePanel}>PLAYGROUND</a><a href="#contact" onClick={closePanel}>CONTACT</a></nav><div className="overlay-social"><span>Come say hi</span><button onClick={copyEmail}>{copied ? "Copied" : "hello@gather.events"}</button><a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Instagram</a><a href="https://www.linkedin.com/" target="_blank" rel="noreferrer">LinkedIn</a></div></> : <><h2 id="panel-title">Credits</h2><div className="credits-copy"><span>Design & direction</span><strong>Gather studio</strong><span>Events & community</span><strong>Working globally</strong><span>Typography</span><strong>Free grotesk fallback, ready for licensed font swap</strong></div></>}</section></div>}
   </div>;
 }
 
