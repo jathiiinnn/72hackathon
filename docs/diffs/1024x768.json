@@ -1,0 +1,88 @@
+{
+  "viewport": {
+    "name": "1024x768",
+    "width": 1024,
+    "height": 768
+  },
+  "mismatchPercentage": 18.454869588216148,
+  "reference": [
+    {
+      "text": "Gather",
+      "missing": true
+    },
+    {
+      "text": "Selected work",
+      "missing": true
+    },
+    {
+      "text": "All events",
+      "missing": true
+    },
+    {
+      "text": "Menu",
+      "missing": true
+    },
+    {
+      "text": "Scroll",
+      "box": {
+        "x": 974.921875,
+        "y": 736.40625,
+        "w": 33.078125,
+        "h": 15.59375
+      },
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "letterSpacing": "0.12px",
+      "color": "rgba(0, 0, 0, 0.5)"
+    }
+  ],
+  "local": [
+    {
+      "text": "Gather",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "fontSize": "16px",
+      "lineHeight": "normal",
+      "letterSpacing": "normal",
+      "color": "rgb(0, 0, 0)"
+    },
+    {
+      "text": "Selected work",
+      "box": {
+        "x": 143.359375,
+        "y": 969,
+        "w": 67.59375,
+        "h": 13
+      },
+      "fontSize": "10px",
+      "lineHeight": "13px",
+      "letterSpacing": "normal",
+      "color": "rgba(0, 0, 0, 0.48)"
+    },
+    {
+      "text": "All events",
+      "box": {
+        "x": 143.359375,
+        "y": 1607.109375,
+        "w": 46.65625,
+        "h": 13
+      },
+      "fontSize": "10px",
+      "lineHeight": "13px",
+      "letterSpacing": "normal",
+      "color": "rgba(0, 0, 0, 0.48)"
+    },
+    {
+      "text": "Menu",
+      "missing": true
+    },
+    {
+      "text": "Scroll",
+      "missing": true
+    }
+  ]
+}
