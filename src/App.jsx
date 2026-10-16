@@ -11,6 +11,16 @@ const fallbackEvents = [
   { id: "college-3", title: "Founders on Campus", description: "Three student founders share what worked, what broke, and what they learned next.", date: "2026-11-28T17:30:00", location: "Business School Atrium", category: "Talks", image: null },
   { id: "college-4", title: "Cultural Night: Open Stage", description: "Music, poetry, comedy, and dance from the people who make campus feel alive.", date: "2026-12-05T19:00:00", location: "Student Plaza", category: "Culture", image: null },
   { id: "college-5", title: "Design Sprint Weekend", description: "A hands-on weekend challenge to turn a campus problem into a thoughtful solution.", date: "2026-12-12T10:00:00", location: "Design Studio", category: "Workshop", image: null },
+  { id: "college-6", title: "Robotics Arena", description: "Student teams put their autonomous builds through a series of creative challenges.", date: "2026-12-19T09:30:00", location: "Engineering Quad", category: "Technology", image: null },
+  { id: "college-7", title: "Winter Sports Meet", description: "A spirited day of track, court, and field events across the university community.", date: "2027-01-09T08:00:00", location: "University Stadium", category: "Sports", image: null },
+  { id: "college-8", title: "Photography Walk", description: "Explore overlooked corners of campus and learn to see everyday spaces differently.", date: "2027-01-16T07:30:00", location: "Arts Block Gate", category: "Creative", image: null },
+  { id: "college-9", title: "Model United Nations", description: "Research, negotiate, and represent a nation in a day of fast-moving diplomacy.", date: "2027-01-23T09:00:00", location: "Conference Hall", category: "Competition", image: null },
+  { id: "college-10", title: "Alumni Career Mixer", description: "Meet graduates from different paths and ask the questions that matter to you.", date: "2027-01-30T16:00:00", location: "Central Lawn", category: "Community", image: null },
+  { id: "college-11", title: "Sustainability Fair", description: "Student-led projects, repair stations, and practical ideas for a lighter footprint.", date: "2027-02-06T11:00:00", location: "Green Commons", category: "Community", image: null },
+  { id: "college-12", title: "Indie Game Showcase", description: "Play original games made by student developers and meet the teams behind them.", date: "2027-02-13T14:00:00", location: "Media Lab", category: "Technology", image: null },
+  { id: "college-13", title: "Poetry Slam", description: "A warm room, an open mic, and bold new voices taking the stage.", date: "2027-02-20T18:30:00", location: "Amphitheatre", category: "Culture", image: null },
+  { id: "college-14", title: "Research Open House", description: "See what campus labs are working on and find a project to be curious about.", date: "2027-02-27T10:00:00", location: "Science Centre", category: "Talks", image: null },
+  { id: "college-15", title: "Student Startup Pitch Day", description: "Early-stage teams pitch useful ideas to a panel of founders, mentors, and peers.", date: "2027-03-06T13:00:00", location: "Incubation Centre", category: "Competition", image: null },
 ];
 
 function formatDate(value) {
