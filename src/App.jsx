@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Moon, RefreshCw, Search, Sparkles, Sun, Vibrate } from "lucide-react";
 import { getEventById, getEvents } from "./api/events";
 
@@ -26,8 +26,32 @@ const fallbackEvents = [
 const formatDate = (value) => value ? new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(new Date(value)) : "Date to be announced";
 const formatTime = (value) => value ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(value)) : "Time to be announced";
 
+function responsiveImageProps(src) {
+  try {
+    const source = new URL(src);
+    if (source.hostname !== "images.pexels.com") return {};
+
+    const originalWidth = Number(source.searchParams.get("w")) || 1200;
+    const originalHeight = Number(source.searchParams.get("h")) || Math.round(originalWidth * 2 / 3);
+    const widths = [...new Set([320, 480, 640, 800, 960].filter((width) => width < originalWidth).concat(originalWidth))].sort((left, right) => left - right);
+    const srcSet = widths.map((width) => {
+      const candidate = new URL(source);
+      candidate.searchParams.set("w", String(width));
+      candidate.searchParams.set("h", String(Math.round(width * originalHeight / originalWidth)));
+      return `${candidate.href} ${width}w`;
+    }).join(", ");
+
+    return {
+      srcSet,
+      sizes: "(max-width: 700px) calc(100vw - 32px), (max-width: 1308px) calc((100vw - 84px) / 3), 408px",
+    };
+  } catch {
+    return {};
+  }
+}
+
 function EventCard({ event }) {
-  return <a className="event-card" href={`/events/${event.id}`}><div className="event-card__image">{event.image ? <img src={event.image} alt={event.imageAlt} loading="lazy" /> : <span>{event.category?.slice(0, 1)}</span>}<span className="event-card__badge">{event.category}</span></div><div className="event-card__body"><div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div><h3>{event.title}</h3><p>{event.description}</p><div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><ArrowUpRight size={19} /></div></div></a>;
+  return <a className="event-card" href={`/events/${event.id}`}><div className="event-card__image">{event.image ? <img src={event.image} {...responsiveImageProps(event.image)} alt={event.imageAlt} loading="lazy" decoding="async" /> : <span>{event.category?.slice(0, 1)}</span>}<span className="event-card__badge">{event.category}</span></div><div className="event-card__body"><div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div><h3>{event.title}</h3><p>{event.description}</p><div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><ArrowUpRight size={19} /></div></div></a>;
 }
 
 function Header({ navigate, darkMode, setDarkMode, hapticsEnabled, setHapticsEnabled }) {
@@ -131,12 +155,50 @@ function EventPage({ event, events, navigate }) {
   return <section className="event-detail"><a className="back-link" href="/events" onClick={(click) => { click.preventDefault(); navigate("/events"); }}><ArrowLeft size={16} /> All events</a><div className="event-detail__top"><div className="event-detail__visual">{details.bannerImage || details.image ? <img src={details.bannerImage || details.image} alt={details.imageAlt} /> : <span>{details.category?.slice(0, 1)}</span>}</div><div className="event-detail__content"><div className="section-label">{details.category} · {details.event_mode || "EVENT"}</div><h1>{details.title}</h1><p className="event-detail__description">{details.description}</p><div className="detail-list"><div><CalendarDays size={19} /><span><strong>{formatDate(details.date)}</strong>Date</span></div><div><Clock3 size={19} /><span><strong>{formatTime(details.date)}</strong>Time</span></div><div><MapPin size={19} /><span><strong>{details.location}</strong>Location</span></div></div><div className="event-stats"><span>{details.registration_status || "OPEN"}</span>{details.price === 0 ? <span>Free</span> : details.price ? <span>₹{details.price}</span> : null}{details.total_seats ? <span>{details.seats_filled || 0}/{details.total_seats} seats</span> : null}</div></div></div>{details.highlights?.length > 0 && <div className="event-detail__extra"><div className="section-label">Good to know</div><div className="highlight-grid">{details.highlights.slice(0, 4).map((highlight) => <div key={highlight}>{highlight}</div>)}</div></div>}{details.tags?.length > 0 && <div className="tag-row">{details.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<a className="next-event" href={`/events/${next.id}`} onClick={(click) => { click.preventDefault(); navigate(`/events/${next.id}`); }}><span>{detailsStatus === "loading" ? "Loading details" : "Next event"}</span><strong>{next.title}</strong><ArrowRight size={18} /></a></section>;
 }
 
+function IntroReveal({ onFinish }) {
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    sessionStorage.setItem("gather-intro-played", "true");
+    if (reducedMotion) onFinish();
+    const onKeyDown = (event) => { if (event.key === "Escape") onFinish(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onFinish]);
+
+  useEffect(() => {
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  return <div className="intro-reveal" aria-label="Opening animation">
+    <div className="intro-curtain" onAnimationEnd={(event) => { if (event.target === event.currentTarget) onFinish(); }}>
+      <span className="intro-curtain__edge" aria-hidden="true" />
+      <button className="intro-skip" type="button" onClick={onFinish}>Skip intro <span>ESC</span></button>
+    </div>
+    <div className="intro-pusher-track" aria-hidden="true">
+      <div className="intro-pusher">
+        <div className="intro-boy__part intro-boy__leg intro-boy__leg--back" />
+        <div className="intro-boy__part intro-boy__leg intro-boy__leg--front" />
+        <div className="intro-boy__part intro-boy__body" />
+      </div>
+    </div>
+  </div>;
+}
+
 function App() {
   const [events, setEvents] = useState(fallbackEvents);
   const [route, setRoute] = useState(window.location.pathname);
   const [status, setStatus] = useState("loading");
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("gather-theme") === "dark");
   const [hapticsEnabled, setHapticsEnabled] = useState(() => localStorage.getItem("gather-haptics") !== "off");
+  const [showIntro, setShowIntro] = useState(() => window.location.pathname === "/" && sessionStorage.getItem("gather-intro-played") !== "true");
+  const finishIntro = useCallback(() => setShowIntro(false), []);
   const navigate = (path) => { window.history.pushState({}, "", path); setRoute(path); window.scrollTo(0, 0); };
   useEffect(() => { document.documentElement.dataset.theme = darkMode ? "dark" : "light"; localStorage.setItem("gather-theme", darkMode ? "dark" : "light"); }, [darkMode]);
   useEffect(() => { localStorage.setItem("gather-haptics", hapticsEnabled ? "on" : "off"); }, [hapticsEnabled]);
@@ -152,7 +214,7 @@ function App() {
   useEffect(() => { const controller = new AbortController(); getEvents(controller.signal).then((items) => { if (items.length) setEvents(items); setStatus(items.length ? "ready" : "empty"); }).catch(() => setStatus("error")); return () => controller.abort(); }, []);
   const eventId = route.match(/^\/events\/([^/]+)/)?.[1];
   const selected = events.find((event) => event.id === eventId);
-  return <div className="app-shell"><Header navigate={navigate} darkMode={darkMode} setDarkMode={setDarkMode} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>Events are temporarily unavailable.</strong> We’re showing the saved calendar so you can keep browsing. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry connection</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer></div>;
+  return <div className="app-shell"><Header navigate={navigate} darkMode={darkMode} setDarkMode={setDarkMode} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>Events are temporarily unavailable.</strong> We’re showing the saved calendar so you can keep browsing. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry connection</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer>{showIntro && <IntroReveal onFinish={finishIntro} />}</div>;
 }
 
 export default App;
