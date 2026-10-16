@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Moon, RefreshCw, Search, Sparkles, Sun, Vibrate } from "lucide-react";
 import { getEventById, getEvents } from "./api/events";
 
@@ -38,10 +38,88 @@ function Landing({ events, navigate }) {
   return <><section className="hero"><div className="hero__eyebrow"><Sparkles size={16} /> Curious by default</div><h1>Make room for<br /><em>something new.</em></h1><p>Gather is a calmer way to find events, ideas, and people worth making time for.</p><a className="button button--dark" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Explore events <ArrowUpRight size={17} /></a><div className="hero__scribble">scroll to wander ↓</div></section><section className="intro" id="about"><div className="section-label">01 / Why gather</div><div><h2>The best plans start with<br /><em>“what if I went?”</em></h2><p>From small workshops to big conversations, discover what is happening around you without the noise. A little inspiration, neatly arranged.</p></div></section><section className="events-section"><div className="section-heading"><div><div className="section-label">02 / Coming up</div><h2>Go on,<br /><em>pick one.</em></h2></div><a className="text-button" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>See all events <ArrowUpRight size={15} /></a></div><div className="event-grid">{events.slice(0, 3).map((event) => <EventCard event={event} key={event.id} />)}</div></section><section className="closing"><div className="section-label">03 / Keep in touch</div><h2>Leave a little space<br />for <em>serendipity.</em></h2><p>Good things happen when you look up from the usual.</p><a className="button button--light" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Browse the calendar <ArrowUpRight size={17} /></a></section></>;
 }
 
+function EventOrbit({ events, navigate }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const orbitRef = useRef(null);
+  const itemsRef = useRef(null);
+  const itemRefs = useRef([]);
+  const activeEvent = events[activeIndex] || events[0];
+
+  useEffect(() => {
+    setActiveIndex((index) => Math.min(index, Math.max(0, events.length - 1)));
+  }, [events.length]);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateRotation = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => itemsRef.current?.style.setProperty("--orbit-rotation", `${window.scrollY * 0.16}deg`));
+    };
+    window.addEventListener("scroll", updateRotation, { passive: true });
+    updateRotation();
+    return () => { window.removeEventListener("scroll", updateRotation); cancelAnimationFrame(frame); };
+  }, []);
+
+  const selectNearest = (event) => {
+    if (!orbitRef.current || event.pointerType === "touch") return;
+    const bounds = orbitRef.current.getBoundingClientRect();
+    const pointerX = event.clientX;
+    const pointerY = event.clientY;
+    let nearestIndex = -1;
+    let nearestDistance = Infinity;
+    itemRefs.current.forEach((item, index) => {
+      if (!item) return;
+      const rect = item.getBoundingClientRect();
+      const distance = Math.hypot(pointerX - (rect.left + rect.width / 2), pointerY - (rect.top + rect.height / 2));
+      if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index; }
+    });
+    if (nearestIndex >= 0 && nearestDistance < 112 && bounds.width > 0) setActiveIndex(nearestIndex);
+  };
+
+  if (!activeEvent) return null;
+  return <div className="orbit-wrap">
+    <div className="orbit-stage" ref={orbitRef} onPointerMove={selectNearest}>
+      <div className="orbit-ring" aria-hidden="true" />
+      <div className="orbit-ring orbit-ring--inner" aria-hidden="true" />
+      <div className="orbit-items" ref={itemsRef} style={{ "--orbit-mobile-node-size": `${Math.max(27, Math.min(48, 820 / events.length))}px` }}>
+        {events.map((event, index) => {
+          const angle = (360 / events.length) * index;
+          const selected = index === activeIndex;
+          return <button
+            className={`orbit-node ${selected ? "is-active" : ""}`}
+            key={event.id}
+            ref={(node) => { itemRefs.current[index] = node; }}
+            style={{ "--node-angle": `${angle}deg`, "--counter-angle": `${-angle}deg` }}
+            type="button"
+            aria-label={`Preview ${event.title}`}
+            aria-pressed={selected}
+            onFocus={() => setActiveIndex(index)}
+            onPointerEnter={() => setActiveIndex(index)}
+            onClick={() => setActiveIndex(index)}
+          >
+            {event.image ? <img src={event.image} alt="" loading="lazy" /> : <span className="orbit-node__fallback">{event.category?.slice(0, 1)}</span>}
+            <span className="orbit-node__number">{String(index + 1).padStart(2, "0")}</span>
+          </button>;
+        })}
+      </div>
+      <article className="orbit-preview" key={activeEvent.id}>
+        <span className="orbit-preview__eyebrow">{String(activeIndex + 1).padStart(2, "0")} <span> / {String(events.length).padStart(2, "0")}</span></span>
+        <span className="orbit-preview__category">{activeEvent.category}</span>
+        <h2>{activeEvent.title}</h2>
+        <p>{activeEvent.description}</p>
+        <div className="orbit-preview__meta"><span><CalendarDays size={14} />{formatDate(activeEvent.date)}</span><span><MapPin size={14} />{activeEvent.location}</span></div>
+        <a href={`/events/${activeEvent.id}`} onClick={(click) => { click.preventDefault(); navigate(`/events/${activeEvent.id}`); }}>Explore event <ArrowUpRight size={15} /></a>
+      </article>
+      <span className="orbit-hint"><span /> Move closer to explore</span>
+    </div>
+    <p className="orbit-count">A full orbit of things to do <span>{events.length} EVENTS</span></p>
+  </div>;
+}
+
 function EventsPage({ events, navigate }) {
   const [query, setQuery] = useState("");
   const visible = useMemo(() => events.filter((event) => `${event.title} ${event.description} ${event.location} ${event.category}`.toLowerCase().includes(query.toLowerCase())), [events, query]);
-  return <section className="events-page"><a className="back-link" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><ArrowLeft size={16} /> Back home</a><div className="page-heading"><div><div className="section-label">02 / Events</div><h1>Find your<br /><em>next thing.</em></h1></div><label className="search-box"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" aria-label="Search events" /></label></div>{visible.length ? <div className="event-grid">{visible.map((event) => <EventCard event={event} key={event.id} />)}</div> : <div className="state-card"><h3>No matches found.</h3><p>Try a different search.</p></div>}</section>;
+  return <section className="events-page"><a className="back-link" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><ArrowLeft size={16} /> Back home</a><div className="page-heading"><div><div className="section-label">02 / Events</div><h1>Find your<br /><em>next thing.</em></h1></div><label className="search-box"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events" aria-label="Search events" /></label></div>{visible.length ? <EventOrbit events={visible} navigate={navigate} /> : <div className="state-card"><h3>No matches found.</h3><p>Try a different search.</p></div>}</section>;
 }
 
 function EventPage({ event, events, navigate }) {
