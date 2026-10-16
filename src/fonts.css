@@ -1,0 +1,17 @@
+@font-face {
+  font-family: "Gather Grotesk";
+  src: local("Arial");
+  ascent-override: 91.84%;
+  descent-override: 19.59%;
+  line-gap-override: 0%;
+  size-adjust: 107.69%;
+}
+
+@font-face {
+  font-family: "Gather Display";
+  src: local("Arial");
+  ascent-override: 122.71%;
+  descent-override: 28.2%;
+  line-gap-override: 0%;
+  size-adjust: 95.75%;
+}
