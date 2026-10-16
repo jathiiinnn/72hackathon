@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, RefreshCw, Search, Sparkles } from "lucide-react";
-import { getEvents } from "./api/events";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Moon, RefreshCw, Search, Sparkles, Sun } from "lucide-react";
+import { getEventById, getEvents } from "./api/events";
 
 const fallbackEvents = [
   { id: "sample-1", title: "Open Studio: Small Things", description: "An evening of makers, experiments, and unfinished ideas.", date: "2026-10-24T18:30:00", location: "The Courtyard", category: "Creative", image: null },
@@ -27,11 +27,11 @@ const formatDate = (value) => value ? new Intl.DateTimeFormat("en-IN", { weekday
 const formatTime = (value) => value ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(value)) : "Time to be announced";
 
 function EventCard({ event }) {
-  return <a className="event-card" href={`/events/${event.id}`}><div className="event-card__image" style={event.image ? { backgroundImage: `url(${event.image})` } : undefined}>{!event.image && <span>{event.category?.slice(0, 1)}</span>}<span className="event-card__badge">{event.category}</span></div><div className="event-card__body"><div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div><h3>{event.title}</h3><p>{event.description}</p><div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><ArrowUpRight size={19} /></div></div></a>;
+  return <a className="event-card" href={`/events/${event.id}`}><div className="event-card__image">{event.image ? <img src={event.image} alt={event.imageAlt} loading="lazy" /> : <span>{event.category?.slice(0, 1)}</span>}<span className="event-card__badge">{event.category}</span></div><div className="event-card__body"><div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div><h3>{event.title}</h3><p>{event.description}</p><div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><ArrowUpRight size={19} /></div></div></a>;
 }
 
-function Header({ navigate }) {
-  return <header className="site-header"><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><nav><a href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Explore events</a><a href="/#about">Our point of view</a></nav><a className="header-link" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Find an event <ArrowUpRight size={16} /></a></header>;
+function Header({ navigate, darkMode, setDarkMode }) {
+  return <header className="site-header"><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><nav><a href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Explore events</a><a href="/#about">Our point of view</a></nav><div className="header-actions"><button className="theme-toggle" type="button" onClick={() => setDarkMode((value) => !value)} aria-label={`Switch to ${darkMode ? "light" : "dark"} mode`}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? "Light" : "Dark"}</span></button><a className="header-link" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Find an event <ArrowUpRight size={16} /></a></div></header>;
 }
 
 function Landing({ events, navigate }) {
@@ -45,21 +45,26 @@ function EventsPage({ events, navigate }) {
 }
 
 function EventPage({ event, events, navigate }) {
+  const [details, setDetails] = useState(event);
+  const [detailsStatus, setDetailsStatus] = useState("loading");
+  useEffect(() => { const controller = new AbortController(); setDetails(event); getEventById(event.id, controller.signal).then((item) => setDetails(item)).catch(() => {}).finally(() => setDetailsStatus("ready")); return () => controller.abort(); }, [event]);
   const index = events.findIndex((item) => item.id === event.id);
   const next = events[(index + 1) % events.length];
-  return <section className="event-detail"><a className="back-link" href="/events" onClick={(click) => { click.preventDefault(); navigate("/events"); }}><ArrowLeft size={16} /> All events</a><div className="event-detail__top"><div className="event-detail__visual">{event.image ? <img src={event.image} alt="" /> : <span>{event.category?.slice(0, 1)}</span>}</div><div className="event-detail__content"><div className="section-label">{event.category}</div><h1>{event.title}</h1><p className="event-detail__description">{event.description}</p><div className="detail-list"><div><CalendarDays size={19} /><span><strong>{formatDate(event.date)}</strong>Date</span></div><div><Clock3 size={19} /><span><strong>{formatTime(event.date)}</strong>Time</span></div><div><MapPin size={19} /><span><strong>{event.location}</strong>Location</span></div></div><button className="button button--dark" type="button">Save this event <ArrowUpRight size={17} /></button></div></div><a className="next-event" href={`/events/${next.id}`} onClick={(click) => { click.preventDefault(); navigate(`/events/${next.id}`); }}><span>Next event</span><strong>{next.title}</strong><ArrowRight size={18} /></a></section>;
+  return <section className="event-detail"><a className="back-link" href="/events" onClick={(click) => { click.preventDefault(); navigate("/events"); }}><ArrowLeft size={16} /> All events</a><div className="event-detail__top"><div className="event-detail__visual">{details.bannerImage || details.image ? <img src={details.bannerImage || details.image} alt={details.imageAlt} /> : <span>{details.category?.slice(0, 1)}</span>}</div><div className="event-detail__content"><div className="section-label">{details.category} · {details.event_mode || "EVENT"}</div><h1>{details.title}</h1><p className="event-detail__description">{details.description}</p><div className="detail-list"><div><CalendarDays size={19} /><span><strong>{formatDate(details.date)}</strong>Date</span></div><div><Clock3 size={19} /><span><strong>{formatTime(details.date)}</strong>Time</span></div><div><MapPin size={19} /><span><strong>{details.location}</strong>Location</span></div></div><div className="event-stats"><span>{details.registration_status || "OPEN"}</span>{details.price === 0 ? <span>Free</span> : details.price ? <span>₹{details.price}</span> : null}{details.total_seats ? <span>{details.seats_filled || 0}/{details.total_seats} seats</span> : null}</div></div></div>{details.highlights?.length > 0 && <div className="event-detail__extra"><div className="section-label">Good to know</div><div className="highlight-grid">{details.highlights.slice(0, 4).map((highlight) => <div key={highlight}>{highlight}</div>)}</div></div>}{details.tags?.length > 0 && <div className="tag-row">{details.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<a className="next-event" href={`/events/${next.id}`} onClick={(click) => { click.preventDefault(); navigate(`/events/${next.id}`); }}><span>{detailsStatus === "loading" ? "Loading details" : "Next event"}</span><strong>{next.title}</strong><ArrowRight size={18} /></a></section>;
 }
 
 function App() {
   const [events, setEvents] = useState(fallbackEvents);
   const [route, setRoute] = useState(window.location.pathname);
   const [status, setStatus] = useState("loading");
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("gather-theme") === "dark");
   const navigate = (path) => { window.history.pushState({}, "", path); setRoute(path); window.scrollTo(0, 0); };
+  useEffect(() => { document.documentElement.dataset.theme = darkMode ? "dark" : "light"; localStorage.setItem("gather-theme", darkMode ? "dark" : "light"); }, [darkMode]);
   useEffect(() => { const onPopState = () => setRoute(window.location.pathname); window.addEventListener("popstate", onPopState); return () => window.removeEventListener("popstate", onPopState); }, []);
   useEffect(() => { const controller = new AbortController(); getEvents(controller.signal).then((items) => { if (items.length) setEvents(items); setStatus(items.length ? "ready" : "empty"); }).catch(() => setStatus("error")); return () => controller.abort(); }, []);
   const eventId = route.match(/^\/events\/([^/]+)/)?.[1];
   const selected = events.find((event) => event.id === eventId);
-  return <div className="app-shell"><Header navigate={navigate} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>We hit a small snag.</strong> Showing the built-in event calendar while the events service wakes up. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Try again</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer></div>;
+  return <div className="app-shell"><Header navigate={navigate} darkMode={darkMode} setDarkMode={setDarkMode} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>Events are temporarily unavailable.</strong> We’re showing the saved calendar so you can keep browsing. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry connection</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer></div>;
 }
 
 export default App;
