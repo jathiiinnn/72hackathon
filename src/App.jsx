@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Moon, RefreshCw, Search, Sparkles, Sun } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Moon, RefreshCw, Search, Sparkles, Sun, Vibrate } from "lucide-react";
 import { getEventById, getEvents } from "./api/events";
 
 const fallbackEvents = [
@@ -30,8 +30,8 @@ function EventCard({ event }) {
   return <a className="event-card" href={`/events/${event.id}`}><div className="event-card__image">{event.image ? <img src={event.image} alt={event.imageAlt} loading="lazy" /> : <span>{event.category?.slice(0, 1)}</span>}<span className="event-card__badge">{event.category}</span></div><div className="event-card__body"><div className="event-card__meta"><span><CalendarDays size={15} />{formatDate(event.date)}</span><span><Clock3 size={15} />{formatTime(event.date)}</span></div><h3>{event.title}</h3><p>{event.description}</p><div className="event-card__footer"><span><MapPin size={15} />{event.location}</span><ArrowUpRight size={19} /></div></div></a>;
 }
 
-function Header({ navigate, darkMode, setDarkMode }) {
-  return <header className="site-header"><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><nav><a href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Explore events</a><a href="/#about">Our point of view</a></nav><div className="header-actions"><button className="theme-toggle" type="button" onClick={() => setDarkMode((value) => !value)} aria-label={`Switch to ${darkMode ? "light" : "dark"} mode`}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? "Light" : "Dark"}</span></button><a className="header-link" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Find an event <ArrowUpRight size={16} /></a></div></header>;
+function Header({ navigate, darkMode, setDarkMode, hapticsEnabled, setHapticsEnabled }) {
+  return <header className="site-header"><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><nav><a href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Explore events</a><a href="/#about">Our point of view</a></nav><div className="header-actions"><button className={`theme-toggle ${hapticsEnabled ? "is-enabled" : ""}`} type="button" onClick={() => setHapticsEnabled((value) => !value)} aria-pressed={hapticsEnabled} aria-label={`Turn haptics ${hapticsEnabled ? "off" : "on"}`}><Vibrate size={16} /><span>Haptics {hapticsEnabled ? "on" : "off"}</span></button><button className="theme-toggle" type="button" onClick={() => setDarkMode((value) => !value)} aria-label={`Switch to ${darkMode ? "light" : "dark"} mode`}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}<span>{darkMode ? "Light" : "Dark"}</span></button><a className="header-link" href="/events" onClick={(event) => { event.preventDefault(); navigate("/events"); }}>Find an event <ArrowUpRight size={16} /></a></div></header>;
 }
 
 function Landing({ events, navigate }) {
@@ -58,13 +58,23 @@ function App() {
   const [route, setRoute] = useState(window.location.pathname);
   const [status, setStatus] = useState("loading");
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("gather-theme") === "dark");
+  const [hapticsEnabled, setHapticsEnabled] = useState(() => localStorage.getItem("gather-haptics") !== "off");
   const navigate = (path) => { window.history.pushState({}, "", path); setRoute(path); window.scrollTo(0, 0); };
   useEffect(() => { document.documentElement.dataset.theme = darkMode ? "dark" : "light"; localStorage.setItem("gather-theme", darkMode ? "dark" : "light"); }, [darkMode]);
+  useEffect(() => { localStorage.setItem("gather-haptics", hapticsEnabled ? "on" : "off"); }, [hapticsEnabled]);
+  useEffect(() => {
+    if (!hapticsEnabled || typeof navigator.vibrate !== "function") return undefined;
+    const onClick = (event) => {
+      if (event.target.closest("a, button, input, [role='button']")) navigator.vibrate(8);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [hapticsEnabled]);
   useEffect(() => { const onPopState = () => setRoute(window.location.pathname); window.addEventListener("popstate", onPopState); return () => window.removeEventListener("popstate", onPopState); }, []);
   useEffect(() => { const controller = new AbortController(); getEvents(controller.signal).then((items) => { if (items.length) setEvents(items); setStatus(items.length ? "ready" : "empty"); }).catch(() => setStatus("error")); return () => controller.abort(); }, []);
   const eventId = route.match(/^\/events\/([^/]+)/)?.[1];
   const selected = events.find((event) => event.id === eventId);
-  return <div className="app-shell"><Header navigate={navigate} darkMode={darkMode} setDarkMode={setDarkMode} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>Events are temporarily unavailable.</strong> We’re showing the saved calendar so you can keep browsing. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry connection</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer></div>;
+  return <div className="app-shell"><Header navigate={navigate} darkMode={darkMode} setDarkMode={setDarkMode} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} /><main id="top">{eventId && selected ? <EventPage event={selected} events={events} navigate={navigate} /> : route === "/events" ? <EventsPage events={events} navigate={navigate} /> : <Landing events={events} navigate={navigate} />}{status === "error" && <div className="notice"><strong>Events are temporarily unavailable.</strong> We’re showing the saved calendar so you can keep browsing. <button onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry connection</button></div>}</main><footer><a className="logo" href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><span>g</span>ather<span className="logo-dot">.</span></a><span>Made for the pleasantly curious.</span><span>© 2026</span></footer></div>;
 }
 
 export default App;
